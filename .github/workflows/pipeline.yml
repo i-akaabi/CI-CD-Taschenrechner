@@ -98,6 +98,7 @@ jobs:
     # Dieser Job darf ein GitHub Release erstellen
     permissions:
       contents: write
+      actions: read
 
     steps:
 

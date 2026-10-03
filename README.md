@@ -22,6 +22,12 @@ CI-CD-Taschenrechner/
 ├── requirements.txt
 └── README.md
 ```
+## Pipeline-Architektur
+
+| Job | Zweck | Trigger / Bedingung | needs | Environment | Artifact |
+|---|---|---|---|---|---|
+| test | Dependencies installieren, Tests ausführen und Paket bauen | `push` und `pull_request` | - | - | erstellt `app-paket` |
+| deploy | Artifact herunterladen und GitHub Release erstellen | nur Push auf `main` | `test` | `production` | verwendet `app-paket` |
 
 ## Pipeline im Überblick
 
