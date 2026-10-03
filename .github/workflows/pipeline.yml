@@ -1,0 +1,71 @@
+# ----------------------------------------------------
+# CI/CD-Pipeline für den Taschenrechner
+# ----------------------------------------------------
+# Der Workflow startet bei einem Push sowie bei einem
+# Pull Request auf das Repository.
+# ----------------------------------------------------
+
+name: CI/CD-Pipeline
+
+on:
+  push:
+  pull_request:
+
+# Python-Version zentral festlegen
+env:
+  PYTHON_VERSION: "3.12"
+  ARTIFACT_NAME: app-paket
+
+# Standardmäßig nur lesenden Zugriff erlauben
+permissions:
+  contents: read
+
+jobs:
+
+  # --------------------------------------------------
+  # Job 1: Anwendung testen und Paket erstellen
+  # --------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Quellcode aus dem Repository laden
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # Gewünschte Python-Version installieren
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Pip-Pakete zwischenspeichern
+      - name: Pip-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Benötigte Python-Pakete installieren
+      - name: Dependencies installieren
+        run: python -m pip install -r requirements.txt
+
+      # Automatisierte Tests ausführen
+      - name: Tests ausführen
+        run: python -m pytest -v
+
+      # Anwendung als ZIP-Datei paketieren
+      - name: Paket bauen
+        run: |
+          mkdir -p build
+          python -m zipfile -c "build/${{ env.ARTIFACT_NAME }}.zip" src/
+
+      # Fertiges Paket als Artifact speichern
+      - name: Paket hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: build/
