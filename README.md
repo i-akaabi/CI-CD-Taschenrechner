@@ -101,14 +101,20 @@ python -m zipfile -c build/app-paket.zip src/
 
 ## Abschluss-Challenge
 
-Bei der fehlerhaften Beispiel-Pipeline wurden folgende Probleme erkannt und korrigiert:
+Für die Abschluss-Challenge wurde die absichtlich fehlerhafte Pipeline auf dem Branch `challenge-debug` getestet und schrittweise repariert.
 
-1. Python-Version als String festlegen.
-2. Dependencies vor den Tests installieren.
-3. Richtigen Dateinamen `requirements.txt` verwenden.
-4. Repository im Job auschecken und Jobs mit `needs` verbinden.
-5. Deployment auf `main` beschränken und Secrets nicht ausgeben.
-6. Cache-Key mit `hashFiles('requirements.txt')` erstellen.
+| Nr. | Symptom / Risiko | Ursache | Fix |
+|---|---|---|---|
+| 1 | `setup-python` sucht Python 3.1 und der Job bricht ab | `python-version: 3.10` wurde ohne Anführungszeichen angegeben | Python-Version als String angeben: `"3.10"` |
+| 2 | `No module named pytest` | Die Tests wurden vor der Installation der Dependencies gestartet | Erst Dependencies installieren, danach `pytest` ausführen |
+| 3 | `requirement.txt` kann nicht gefunden werden | Falscher Dateiname in der Pipeline | `requirements.txt` verwenden |
+| 4 | Der Build kann trotz fehlgeschlagener Tests laufen | `needs: test` und Repository-Checkout fehlen | `needs: test` ergänzen und Repository mit `actions/checkout` laden |
+| 5 | Deployment kann auf dem falschen Branch laufen und Secrets werden unsicher verwendet | Keine Branch-Bedingung, kein Environment und Secret direkt im Befehl verwendet | `needs: test`, Bedingung für `main`, `environment: production` und Secret über `env` verwenden |
+| 6 | Der Cache wird bei geänderten Dependencies nicht automatisch erneuert | Statischer Cache-Key `pip-cache` | Cache-Key mit `hashFiles('requirements.txt')` verwenden |
+
+Zusätzlich wurde beim Release-Job festgestellt, dass das im Build erzeugte Artifact nicht automatisch auf einem neuen Runner verfügbar ist. Deshalb wird das Artifact vor dem Release mit `actions/download-artifact` heruntergeladen.
+
+Der finale Challenge-Lauf war erfolgreich. Der Deployment-Job wurde auf dem Branch `challenge-debug` absichtlich übersprungen, da Deployments nur auf `main` erlaubt sind.
 
 ## Ergebnis
 
