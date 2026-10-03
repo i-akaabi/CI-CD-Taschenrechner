@@ -57,6 +57,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Paket herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: app-paket
+          path: build/
       - name: Pip-Cache
         uses: actions/cache@v4
         with:
