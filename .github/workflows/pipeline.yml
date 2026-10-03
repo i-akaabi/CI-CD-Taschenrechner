@@ -101,6 +101,10 @@ jobs:
 
     steps:
 
+      # Repository für den Deploy-Job laden
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+
       # Artifact aus dem vorherigen Job herunterladen
       - name: Artifact herunterladen
         uses: actions/download-artifact@v8
