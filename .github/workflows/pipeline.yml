@@ -1,143 +1,65 @@
-# ----------------------------------------------------
-# CI/CD-Pipeline für den Taschenrechner
-# ----------------------------------------------------
-# Der Workflow testet die Anwendung, erstellt ein
-# ZIP-Paket und veröffentlicht auf main ein Release.
-# ----------------------------------------------------
+name: Pipeline
 
-name: CI/CD-Pipeline
-
-# ----------------------------------------------------
-# Trigger
-# ----------------------------------------------------
-# Pipeline startet bei:
-# - Push
-# - Pull Request
-# ----------------------------------------------------
 on:
   push:
   pull_request:
 
-# ----------------------------------------------------
-# Globale Variablen
-# ----------------------------------------------------
-env:
-  PYTHON_VERSION: "3.12"
-  ARTIFACT_NAME: app-paket
-
-# Standardmäßig nur lesender Zugriff
 permissions:
   contents: read
 
 jobs:
-
-  # --------------------------------------------------
-  # Job 1: Testen und Build erstellen
-  # --------------------------------------------------
   test:
     runs-on: ubuntu-latest
-
     steps:
+      - uses: actions/checkout@v4
 
-      # Quellcode aus dem Repository laden
-      - name: Repository auschecken
-        uses: actions/checkout@v7
-
-      # Python installieren
-      - name: Python einrichten
-        uses: actions/setup-python@v7
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: 3.10
 
-      # Pip-Pakete zwischenspeichern
-      - name: Pip-Cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      # Abhängigkeiten installieren
-      - name: Dependencies installieren
-        run: python -m pip install -r requirements.txt
-
-      # Automatisierte Tests starten
       - name: Tests ausführen
         run: python -m pytest -v
 
-      # Anwendung als ZIP-Datei paketieren
+      - name: Dependencies installieren
+        run: python -m pip install -r requirement.txt
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
       - name: Paket bauen
         run: |
           mkdir -p build
-          python -m zipfile -c "build/${{ env.ARTIFACT_NAME }}.zip" src/
+          python -m zipfile -c build/app.zip src/
 
-      # ZIP-Paket für den nächsten Job bereitstellen
-      - name: Artifact hochladen
-        uses: actions/upload-artifact@v7
+      - name: Paket hochladen
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
+          name: app-paket
           path: build/
 
-  # --------------------------------------------------
-  # Job 2: Deployment / GitHub Release
-  # --------------------------------------------------
   deploy:
-
-    # Deploy startet erst nach erfolgreichem Test-Job
-    needs: test
-
     runs-on: ubuntu-latest
+    steps:
+      - name: Deployment starten
+        run: echo "Deploy nach ${{ secrets.DEPLOY_TOKEN }}"
 
-    # Deployment nur bei Push auf den main-Branch
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    # Production-Environment verwenden
-    environment: production
-
-    # Dieser Job darf ein GitHub Release erstellen
+  release:
+    needs: build
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: read
-
     steps:
-
-      # Repository für den Deploy-Job laden
-      - name: Repository auschecken
-        uses: actions/checkout@v7
-
-      # Artifact aus dem vorherigen Job herunterladen
-      - name: Artifact herunterladen
-        uses: actions/download-artifact@v8
+      - name: Pip-Cache
+        uses: actions/cache@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: download
+          path: ~/.cache/pip
+          key: pip-cache
 
-      # Environment-Variable und Secret sicher prüfen
-      - name: Deployment-Konfiguration prüfen
+      - name: Release erstellen
         env:
-          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-          DEPLOY_TARGET: ${{ vars.DEPLOY_TARGET }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Deployment-Ziel: $DEPLOY_TARGET"
-
-          if [ -z "$DEPLOY_TOKEN" ]; then
-            echo "DEPLOY_TOKEN fehlt."
-            exit 1
-          fi
-
-          echo "DEPLOY_TOKEN ist gesetzt."
-          echo "Länge des Secrets: ${#DEPLOY_TOKEN}"
-
-      # Automatisch ein GitHub Release erstellen
-      - name: GitHub Release erstellen
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG_NAME="v1.0.${{ github.run_number }}"
-
-          gh release create "$TAG_NAME" \
-            "download/${{ env.ARTIFACT_NAME }}.zip" \
-            --title "Release $TAG_NAME" \
-            --notes "Automatisch durch die CI/CD-Pipeline erstellt." \
-            --target "${{ github.sha }}"
+          gh release create "v1.0.${{ github.run_number }}" \
+            --title "Version 1.0.${{ github.run_number }}" \
+            --notes "Release" \
+            build/app.zip
